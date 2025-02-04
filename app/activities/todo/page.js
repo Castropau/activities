@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from 'react';
 import supabase from '../../utils/supabase'; 
@@ -6,8 +7,12 @@ import { useRouter } from 'next/navigation';
 export default function Todo() {
   const [todos, setTodos] = useState([]);
   const [newTodo, new_todo] = useState('');
+  const [newPriority, new_priority] = useState('low'); 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null); 
+  const [editTodo, setEditTodo] = useState(null); 
+  const [updatedTask, setUpdatedTask] = useState('');
+  const [updatedPriority, setUpdatedPriority] = useState('low');
   const router = useRouter(); 
 
   useEffect(() => {
@@ -41,17 +46,17 @@ export default function Todo() {
   };
 
   const add_todo = async () => {
-    if (newTodo.trim() && user) {
+    if (newTodo.trim() && user && newPriority) {
       const { data, error } = await supabase
         .from('todos')
-        .insert([{ task: newTodo, user_email: user.email }]);
+        .insert([{ task: newTodo, user_email: user.email, priority: newPriority }]);
 
       if (error) {
         console.log('Error adding todo:', error);
       } else {
-        
         fetch_todo(user.email); 
-        new_todo('');
+        new_todo(''); 
+        new_priority('low'); 
       }
     }
   };
@@ -69,21 +74,28 @@ export default function Todo() {
       }
     }
   };
+
   const dashboard = () => {
     router.push('/dashboard');
   };
-  
 
-  const update_todo = async (id, updatedTask) => {
-    const { error } = await supabase
-      .from('todos')
-      .update({ task: updatedTask })
-      .eq('id', id);
+  const update_todo = async (id) => {
+    if (updatedTask.trim() && updatedPriority) {
+      const { error } = await supabase
+        .from('todos')
+        .update({ task: updatedTask, priority: updatedPriority })
+        .eq('id', id);
 
-    if (error) {
-      console.log('Error updating todo:', error);
-    } else {
-      setTodos(todos.map((todo) => (todo.id === id ? { ...todo, task: updatedTask } : todo)));
+      if (error) {
+        console.log('Error updating todo:', error);
+      } else {
+        setTodos(
+          todos.map((todo) =>
+            todo.id === id ? { ...todo, task: updatedTask, priority: updatedPriority } : todo
+          )
+        );
+        setEditTodo(null); 
+      }
     }
   };
 
@@ -107,6 +119,17 @@ export default function Todo() {
           placeholder="Add a new todo"
           className="flex-1 p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      
+        <select
+          value={newPriority}
+          onChange={(e) => new_priority(e.target.value)}
+          className="p-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+
         <button
           onClick={add_todo}
           className="px-6 py-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -122,9 +145,14 @@ export default function Todo() {
           {todos.map((todo) => (
             <li key={todo.id} className="flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm">
               <span className="text-gray-700">{todo.task}</span>
+              <span className="text-sm text-gray-500">{todo.priority}</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => update_todo(todo.id, prompt('Edit task', todo.task))}
+                  onClick={() => {
+                    setEditTodo(todo.id);
+                    setUpdatedTask(todo.task);
+                    setUpdatedPriority(todo.priority);
+                  }}
                   className="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 >
                   Update
@@ -136,11 +164,36 @@ export default function Todo() {
                   Delete
                 </button>
               </div>
+
+              {editTodo === todo.id && (
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={updatedTask}
+                    onChange={(e) => setUpdatedTask(e.target.value)}
+                    className="p-2 border border-gray-300 rounded-md"
+                  />
+                  <select
+                    value={updatedPriority}
+                    onChange={(e) => setUpdatedPriority(e.target.value)}
+                    className="p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                  <button
+                    onClick={() => update_todo(todo.id)}
+                    className="px-4 py-2 bg-green-500 text-white rounded-md"
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
-      
     </div>
   );
 }
